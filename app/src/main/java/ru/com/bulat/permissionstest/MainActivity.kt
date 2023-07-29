@@ -2,73 +2,45 @@ package ru.com.bulat.permissionstest
 
 import android.Manifest
 import android.content.Intent
-import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
 import android.net.Uri
-import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.provider.Settings
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions
+import androidx.activity.result.contract.ActivityResultContracts.RequestPermission
 import androidx.appcompat.app.AlertDialog
+import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import ru.com.bulat.permissionstest.databinding.ActivityMainBinding
 
 class MainActivity : AppCompatActivity() {
+
+    private val permissionCameraLauncher  = registerForActivityResult(
+        RequestPermission(),
+        ::onGotCameraPermissionResult,
+    )
+
+    private val permissionLocationAndRadioLauncher  = registerForActivityResult(
+        RequestMultiplePermissions(),
+        ::onGotRecordAudioAndLocationPermissionsResult,
+    )
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
         binding.requestCameraPermissionButton.setOnClickListener {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) ==
-                PackageManager.PERMISSION_GRANTED) {
-                //Разрешение есть
-                onCameraPermissionGranted()
-            } else {
-                ActivityCompat.requestPermissions(
-                    this,
-                    arrayOf(Manifest.permission.CAMERA),
-                    RQ_REMISSION_FOR_CAMERA,
-                )
-            }
+            permissionCameraLauncher.launch(Manifest.permission.CAMERA)
         }
 
         binding.requestRecordAudioAndLocationPermissionsButton.setOnClickListener {
-            ActivityCompat.requestPermissions(
-                this,
-                arrayOf(Manifest.permission.ACCESS_FINE_LOCATION,
-                    Manifest.permission.RECORD_AUDIO),
-                RQ_REMISSION_FOR_AUDIO_LOCATION,
+            permissionLocationAndRadioLauncher.launch(arrayOf(
+                Manifest.permission.ACCESS_FINE_LOCATION,
+                Manifest.permission.RECORD_AUDIO)
             )
-        }
-    }
-
-    override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<out String>,
-        grantResults: IntArray
-    ) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        when (requestCode) {
-            RQ_REMISSION_FOR_CAMERA -> {
-                if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    onCameraPermissionGranted()
-                } else {
-                    if (shouldShowRequestPermissionRationale(Manifest.permission.CAMERA)) {
-                        //show dialogs with explanation hear
-                        Toast.makeText(this, "Permission denied!", Toast.LENGTH_SHORT).show()
-                    } else {
-                        //oops can't do anything
-                        askUserForOpeningAppSettings()
-                    }
-                }
-            }
-            RQ_REMISSION_FOR_AUDIO_LOCATION -> {
-                if (grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
-                    Toast.makeText(this, "Location & Radio permission granted", Toast.LENGTH_SHORT).show()
-                }
-            }
         }
     }
 
@@ -89,6 +61,29 @@ class MainActivity : AppCompatActivity() {
                 .create()
                 .show()
         }
+    }
+
+    private fun onGotCameraPermissionResult(granted: Boolean) {
+        if (granted) {
+            onCameraPermissionGranted()
+        } else {
+            // example of handling 'Deny & don't ask again' user choice
+            if (!shouldShowRequestPermissionRationale(Manifest.permission.CAMERA)) {
+                askUserForOpeningAppSettings()
+            } else {
+                Toast.makeText(this, R.string.permission_denied, Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private fun onGotRecordAudioAndLocationPermissionsResult(grantResults: Map<String, Boolean>) {
+        if (grantResults.entries.all { it.value }) {
+            onRecordAudioAndLocationPermissionsGranted()
+        }
+    }
+
+    private fun onRecordAudioAndLocationPermissionsGranted() {
+        Toast.makeText(this, R.string.audio_and_location_permissions_granted, Toast.LENGTH_SHORT).show()
     }
 
     private fun onCameraPermissionGranted(){
